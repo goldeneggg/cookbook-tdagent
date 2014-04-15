@@ -1,0 +1,87 @@
+########## template_td-agent.conf for forwarder
+
+### type http, tag prefix is <%= node['tdagent']['conf']['source']['http_tag_prefix'] %>
+# [http://docs.fluentd.org/articles/in_http]
+# - curl http://localhost:9880/debug.curl -F 'json={"a":"aaa","b":"bbb"}'
+<source>
+  type http
+  port <%= node['tdagent']['conf']['source']['http_port'] %>
+</source>
+
+### type tail, sample of custom log, forward to other aggregator servers
+# [http://docs.fluentd.org/articles/in_tail]
+# -
+<source>
+  type tail
+  path <%= node['tdagent']['conf']['source']['tail_custom_logdir'] %>/<%= node['tdagent']['conf']['source']['tail_custom_logfile'] %>
+  tag <%= node['tdagent']['conf']['forward_tag_prefix'] %>.<%= node['tdagent']['conf']['source']['tail_custom_logfile'] %>
+  format <%= node['tdagent']['conf']['source']['tail_custom_regexp_cointran'] %>
+  time_format <%= node['tdagent']['conf']['time_format'] %>
+  pos_file <%= node['tdagent']['conf']['source']['tail_custom_pos_file'] %>
+</source>
+
+### type tail, sample of apache, forward to other aggregator servers
+<source>
+  type tail
+  path <%= node['tdagent']['conf']['source']['tail_apache_access_logdir'] %>/<%= node['tdagent']['conf']['source']['tail_apache_access_logfile'] %>
+  tag <%= node['tdagent']['conf']['forward_tag_prefix'] %>.<%= node['tdagent']['conf']['source']['tail_apache_tag'] %>
+  format <%= node['tdagent']['conf']['source']['tail_apache_format'] %>
+  pos_file <%= node['tdagent']['conf']['source']['tail_apache_pos_file'] %>
+</source>
+
+# [http://docs.fluentd.org/articles/out_file]
+<match <%= node['tdagent']['conf']['source']['http_tag_prefix'] %>.**>
+  type file
+  path <%= node['tdagent']['fluent_log_dir'] %>/<%= node['tdagent']['conf']['source']['http_tag_prefix'] %>
+</match>
+
+#
+# [http://docs.fluentd.org/articles/out_forward]
+<match <%= node['tdagent']['conf']['forward_tag_prefix'] %>.**>
+  type forward
+  <% node['tdagent']['conf']['match']['forward_servers'].each do |server| %>
+    <server>
+      #name <%= server['name'] %>
+      host <%= server['host'] %>
+      port <%= server['port'] %>
+      weight <%= server['weight'] %>
+    </server>
+  <% end %>
+    <secondary>
+      type file
+      path <%= node['tdagent']['fluent_log_dir'] %>/<%= node['tdagent']['conf']['match']['forward_secondary_logfile'] %>
+    </secondary>
+</match>
+
+### matcher of fluent-itself log
+<match fluent.**>
+  type file
+  path <%= node['tdagent']['fluent_log_dir'] %>/fluent.log
+  time_slice_format <%= node['tdagent']['conf']['match']['file_time_slice_format'] %>
+  time_slice_wait <%= node['tdagent']['conf']['match']['file_time_slice_wait'] %>
+  time_format <%= node['tdagent']['conf']['time_format'] %>
+</match>
+
+
+### type exec
+# [http://docs.fluentd.org/articles/in_exec]
+# -
+#<source>
+#  type exec
+#  command <%= node['tdagent']['conf']['source']['exec_command'] %>
+#  keys <%= node['tdagent']['conf']['source']['exec_keys'] %>
+#  tag_key <%= node['tdagent']['conf']['source']['exec_tag_key'] %>
+#  time_key <%= node['tdagent']['conf']['source']['exec_time_key'] %>
+#  time_format <%= node['tdagent']['conf']['time_format'] %>
+#  run_interval <%= node['tdagent']['conf']['source']['exec_run_interval'] %>
+#</source>
+#
+# [http://docs.fluentd.org/articles/out_exec]
+#<match <%= node['tdagent']['conf']['match']['exec_pattern'] %>>
+#  type exec
+#  command <%= node['tdagent']['conf']['match']['exec_command'] %>
+#  keys <%= node['tdagent']['conf']['match']['exec_keys'] %>
+#  tag_key <%= node['tdagent']['conf']['match']['exec_tag_key'] %>
+#  time_key <%= node['tdagent']['conf']['match']['exec_time_key'] %>
+#  time_format <%= node['tdagent']['conf']['time_format'] %>
+#</match>

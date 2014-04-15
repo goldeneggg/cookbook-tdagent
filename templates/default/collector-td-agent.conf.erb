@@ -1,0 +1,44 @@
+########## template_td-agent.conf for aggregator
+
+### type forward ,from other delivery servers
+# [http://docs.fluentd.org/ja/articles/in_forward]
+# -
+<source>
+  type forward
+  port <%= node['tdagent']['conf']['source']['forward_port'] %>
+  bind <%= node['tdagent']['conf']['source']['forward_bind'] %>
+</source>
+
+### match for custom.log forwarded
+# [http://docs.fluentd.org/articles/out_file]
+<match <%= node['tdagent']['conf']['forward_tag_prefix'] %>.<%= node['tdagent']['conf']['source']['tail_custom_logfile'] %>.**>
+  type file
+  path <%= node['tdagent']['fluent_log_dir'] %>/<%= node['tdagent']['conf']['source']['tail_custom_logfile'] %>
+  time_slice_format <%= node['tdagent']['conf']['match']['file_time_slice_format'] %>
+  time_slice_wait <%= node['tdagent']['conf']['match']['file_time_slice_wait'] %>
+  time_format <%= node['tdagent']['conf']['time_format'] %>
+  <% if node['tdagent']['conf']['match']['file_is_compress'] %>
+  compress gzip
+  <% end %>
+</match>
+
+### match for apache access_log forwarded, further out to elasticsearch
+# [https://github.com/uken/fluent-plugin-elasticsearch]
+<match <%= node['tdagent']['conf']['forward_tag_prefix'] %>.<%= node['tdagent']['conf']['source']['tail_apache_tag'] %>.**>
+  <% if @is_service_in_es %>
+  type elasticsearch
+  type_name <%= node['tdagent']['conf']['match']['es_type_name'] %>
+  logstash_format <%= node['tdagent']['conf']['match']['es_log_stash_format'] %>
+  host <%= node['tdagent']['conf']['match']['es_host'] %>
+  port <%= node['tdagent']['conf']['match']['es_port'] %>
+  <% else %>
+  type file
+  path <%= node['tdagent']['fluent_log_dir'] %>/<%= node['tdagent']['conf']['source']['tail_apache_tag'] %>
+  time_slice_format <%= node['tdagent']['conf']['match']['file_time_slice_format'] %>
+  time_slice_wait <%= node['tdagent']['conf']['match']['file_time_slice_wait'] %>
+  time_format <%= node['tdagent']['conf']['time_format'] %>
+  <% if node['tdagent']['conf']['match']['file_is_compress'] %>
+  compress gzip
+  <% end %>
+  <% end %>
+</match>
